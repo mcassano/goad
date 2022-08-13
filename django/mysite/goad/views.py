@@ -34,13 +34,9 @@ def steamCheckUser(request):
 
 @api_view(['POST'])
 def slacklink(request):
-    newplayer = {
-        
-    }
-    player = Person(slack_id =request.data['user_id'],
-        slack_name=request.data['user_name'],
-        steam_id=request.data['text'],
-        team_id=request.data['team_id'])
-    player.save()
+    player, created = Person.objects.update_or_create(slack_id=request.data['user_id'], defaults = {
+        "slack_name":request.data['user_name'],
+        "steam_id":request.data['text'],
+        "team_id":request.data['team_id']})
     
     return Response("that probably worked, thanks")
