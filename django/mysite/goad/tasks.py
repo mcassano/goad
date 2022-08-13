@@ -6,12 +6,53 @@ from steam.webapi import WebAPI
 import json
 from types import SimpleNamespace as Namespace
 import os
+import pickle
 from dotenv import load_dotenv
 load_dotenv()
 
 def checkSteamUser():
-    slack_client = WebClient(os.environ['SLACK_KEY'])
-    game = None
+    players = ['76561197977971907', '76561197960270543']
+
+    priorGameState = readGameFromMemory()
+    
+    currentGameState = readSteamGamesAndExtractGameStateFromPlayers(players)
+
+    gamesWithPlayerLists = {}
+    for game in currentGameState.values():
+        playersInGame = []
+        for player, playerGame in currentGameState.items():
+            if game == playerGame:
+                playersInGame.append(player)
+        playersInGame.sort()
+        gamesWithPlayerLists[game] = playersInGame
+
+    for game, currentPlayerList in gamesWithPlayerLists.items():
+        priorPlayerList = []
+        try:
+            priorPlayerList = priorGameState[game]
+        except:
+            priorPlayerList = []
+
+        if priorPlayerList == currentPlayerList:
+            print("player lists same %s: (%s) (%s)" % (game, priorPlayerList, currentPlayerList))
+        else:
+            print("something different %s: (%s) (%s)" % (game, priorPlayerList, currentPlayerList))
+            
+
+    with open('memory.pickle', 'wb') as handle:
+        pickle.dump(gamesWithPlayerLists, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+def readGameFromMemory():
+    try:
+        with open('memory.pickle', 'rb') as handle:
+            game = pickle.load(handle)
+    except:
+        game = {}
+        with open('memory.pickle', 'wb') as handle:
+            pickle.dump(game, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    return game
+
+def readSteamGamesFromPlayers(players):
     api = steam.webapi.WebAPI(key=os.environ['STEAM_KEY'],
                           format='json',
                           raw='false',
@@ -20,31 +61,23 @@ def checkSteamUser():
                           apihost='api.steampowered.com',
                           auto_load_interfaces=True
                           )
-    data = api.call('ISteamUser.GetPlayerSummaries', steamids="76561197960270543")
+    data = api.call('ISteamUser.GetPlayerSummaries', steamids=",".join(players))
     x = json.loads(data, object_hook=lambda d: Namespace(**d))
+    return x
 
-    personaname = x.response.players[0].personaname
-    gameextrainfo = None
-    try:
-        gameextrainfo = x.response.players[0].gameextrainfo
-    except:
-        gameextrainfo = None
+def extractGameState(response):
+    currentGameState = {}
+    for player in response.players:
+        gameName = None
+        try:
+            gameName = player.gameextrainfo
+        except:
+            gameName = None
+        currentGameState[player.personaname] = gameName
+    return currentGameState
 
-    if game and gameextrainfo != game:
-        slack_client.chat_postMessage(
-            channel='#goad',
-            text="%s now playing %s" % (personaname, gameextrainfo)
-        )
-        game = gameextrainfo
-    elif not game and gameextrainfo:
-        slack_client.chat_postMessage(
-            channel='#goad',
-            text="%s now playing %s" % (personaname, gameextrainfo)
-        )
-        game = gameextrainfo
-    elif game and not x.gameextrainfo:
-        slack_client.chat_postMessage(
-            channel='#goad',
-            text="%s has stopped playing %s" % (personaname, gameextrainfo)
-        )
-        game = gameextrainfo
+def readSteamGamesAndExtractGameStateFromPlayers(players):
+    response = readSteamGamesFromPlayers(players)
+    response = response.response
+    currentGameState = extractGameState(response)
+    return currentGameState
