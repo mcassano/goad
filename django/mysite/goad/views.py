@@ -1,6 +1,8 @@
 from __future__ import print_function
 from django.shortcuts import render
 from django.http import HttpResponse
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
 import os
 import time
 import re
@@ -12,6 +14,8 @@ import json
 from types import SimpleNamespace as Namespace
 from dotenv import load_dotenv
 load_dotenv()
+
+from .models import Person
 
 def index(request):
     return HttpResponse("goad")
@@ -26,3 +30,17 @@ def slack(request):
 
 def steamCheckUser(request):
     return HttpResponse("(%s) (%s) (%s)" %(personaname, game, gameextrainfo))
+
+
+@api_view(['POST'])
+def slacklink(request):
+    newplayer = {
+        
+    }
+    player = Person(slack_id =request.data['user_id'],
+        slack_name=request.data['user_name'],
+        steam_id=request.data['text'],
+        team_id=request.data['team_id'])
+    player.save()
+    
+    return Response("that probably worked, thanks")
