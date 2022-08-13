@@ -7,7 +7,7 @@ To install
 - navigate to the folder that contains requirements.txt 
 - run `python -m venv .venv` 
 - run `source .venv/bin/activate` (you will need to run this in ever terminal instance)
-- run `pip install`
+- run `pip install -r requirements.txt`
 - run `python manage.py migrate`
 - run `python manage.py createsuperuser`
 - run `python manage.py runserver`
