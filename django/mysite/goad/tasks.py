@@ -60,7 +60,7 @@ def checkSteamUser():
 
             slack_client = WebClient(os.environ['SLACK_KEY'])
             slack_client.chat_postMessage(
-                channel='#goad',
+                channel='#gaming',
                 thread_ts='%s' % (gameSession.slack_thread_ts),
                 text="%s are done playing %s, %s hours" % (", ".join(players), gameSession.game.name, str(round((gameSession.time_end - gameSession.time_started).total_seconds()/60/60, 2)))
             )
@@ -76,7 +76,7 @@ def checkSteamUser():
                 gameSessionPerson.save()
             slack_client = WebClient(os.environ['SLACK_KEY'])
             response = slack_client.chat_postMessage(
-                channel='#goad',
+                channel='#gaming',
                 text="%s have started playing %s" % (", ".join(players), gameSession.game.name)
             )
             #x = json.loads(response, object_hook=lambda d: Namespace(**d))
@@ -95,7 +95,7 @@ def checkSteamUser():
         if len(players) > 0:
             slack_client = WebClient(os.environ['SLACK_KEY'])
             slack_client.chat_postMessage(
-                channel='#goad',
+                channel='#gaming',
                 thread_ts='%s' % (gameSession.slack_thread_ts),
                 text="%s have joined playing %s" % (", ".join(players), gameSession.game.name)
             )
