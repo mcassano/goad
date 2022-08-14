@@ -40,3 +40,39 @@ def slacklink(request):
         "team_id":request.data['team_id']})
     
     return Response("that probably worked, thanks")
+
+
+@api_view(['POST'])
+def potentialGames(request):
+    team_id = request.data['team_id'] 
+    print(team_id)
+    peopleInThisSlack = Person.objects.filter(team_id=team_id)
+    games = {
+        
+    }
+        
+    for person in peopleInThisSlack:
+        data = steam.webapi.webapi_request(f'http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key={os.environ["STEAM_KEY"]}&steamid={person.steam_id}&format=json')
+        for game in data['response']['games']:
+            appId = game['appid']
+            playtime_2weeks = game['playtime_2weeks']
+            name = game['name']
+            
+            print()
+            if(appId in games.keys()):
+                games[appId]["players"] = games[appId]["players"] + 1
+                games[appId]["playtime_2weeks"] = games[appId]["playtime_2weeks"] + playtime_2weeks
+            else:
+                games[appId] = {
+                    "players": 1,
+                    "playtime_2weeks": playtime_2weeks,
+                    "name": name,
+                    "appId": appId
+                }
+        
+        
+    def sortedfunc(x):
+        return x["playtime_2weeks"] * x["players"]
+    
+    sortedGames = sorted(games.values(), key=sortedfunc, reverse=True)
+    return Response(f'Looks like {sortedGames[0]["name"]} is the most popular game in this slack group...runner up is {sortedGames[1]["name"]}')
