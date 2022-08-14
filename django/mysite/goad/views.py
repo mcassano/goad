@@ -72,7 +72,7 @@ def potentialGames(request):
         
         
     def sortedfunc(x):
-        return x["playtime_2weeks"] * x["players"]
+        return x["playtime_2weeks"] * ( x["players"] * 2 )
     
     sortedGames = sorted(games.values(), key=sortedfunc, reverse=True)
-    return Response(f'Looks like {sortedGames[0]["name"]} is the most popular game in this slack group...runner up is {sortedGames[1]["name"]}')
+    return Response(f'Looks like *{sortedGames[0]["name"]}* is the most popular game in this slack group...runner up is *{sortedGames[1]["name"]}*')
