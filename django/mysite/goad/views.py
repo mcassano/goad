@@ -9,6 +9,7 @@ import re
 from slack import WebClient
 from slack.errors import SlackApiError
 import steam.webapi
+from .models import Game
 from steam.webapi import WebAPI
 import json
 from types import SimpleNamespace as Namespace
@@ -40,7 +41,7 @@ def slacklink(request):
 
 @api_view(['POST'])
 def potentialGames(request):
-    team_id = request.data['team_id'] 
+    team_id = request.data['team_id']
     peopleInThisSlack = Person.objects.filter(team_id=team_id)
     games = {}
 
@@ -68,8 +69,15 @@ def potentialGames(request):
     topGames = []
     for game in sortedGames[:20]:
         appid = game["appid"]
-        data = steam.webapi.webapi_request(f'https://store.steampowered.com/api/appdetails?appids={appid}')
-        gameName = data[str(appid)]["data"]["name"]
+        gameEntity = None
+        try:
+            gameEntity = Game.objects.get(steam_app_id=appid)
+        except:
+            data = steam.webapi.webapi_request(f'https://store.steampowered.com/api/appdetails?appids={appid}')
+            gameName = data[str(appid)]["data"]["name"]
+            gameEntity = Game(steam_app_id=appid, name=gameName)
+            gameEntity.save()
+        gameName = gameEntity.name
         playTime = game["playtime_forever"]
         topGames.append("%s" % (gameName))
     return Response(f'%s' %(",".join(topGames)))
