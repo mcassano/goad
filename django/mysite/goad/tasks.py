@@ -6,7 +6,6 @@ from steam.webapi import WebAPI
 import json
 from types import SimpleNamespace as Namespace
 import os
-import pickle
 from .models import Game, GameSession, Person, GameSessionPerson
 from datetime import datetime
 from django.utils import timezone
@@ -15,8 +14,6 @@ load_dotenv()
 
 def checkSteamUser():
     players = Person.objects.all()
-
-    priorGameState = readGameFromMemory()
 
     currentGameState = readSteamGamesAndExtractGameStateFromPlayers(players)
 
@@ -51,22 +48,49 @@ def checkSteamUser():
             gameSession.time_end = timezone.now()
             gameSession.save()
 
+            players = []
             for gameSessionPerson in GameSessionPerson.objects.filter(game_session=gameSession):
+                players.append(gameSessionPerson.person.slack_name)
                 gameSessionPerson.time_left = timezone.now()
                 gameSessionPerson.save()
 
-    with open('memory.pickle', 'wb') as handle:
-        pickle.dump(gamesWithPlayerLists, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            slack_client = WebClient(os.environ['SLACK_KEY'])
+            slack_client.chat_postMessage(
+                channel='#goad',
+                text="%s are done playing %s, %s hours" % (", ".join(players), gameSession.game.name, str(round((gameSession.time_end - gameSession.time_started).total_seconds()/60/60, 2)))
+            )
 
-def readGameFromMemory():
-    try:
-        with open('memory.pickle', 'rb') as handle:
-            game = pickle.load(handle)
-    except:
-        game = {}
-        with open('memory.pickle', 'wb') as handle:
-            pickle.dump(game, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    return game
+    gameSessions = GameSession.objects.filter(notified_on=False)
+    for gameSession in gameSessions:
+        gameSessionPersons = GameSessionPerson.objects.filter(game_session=gameSession).order_by('-time_joined')
+        if ((timezone.now() - gameSessionPersons.first().time_joined).total_seconds()) / 60 > 5:
+            players = []
+            for gameSessionPerson in gameSessionPersons:
+                players.append(gameSessionPerson.person.slack_name)
+                gameSessionPerson.notified_on = True
+                gameSessionPerson.save()
+            slack_client = WebClient(os.environ['SLACK_KEY'])
+            slack_client.chat_postMessage(
+                channel='#goad',
+                text="%s have started playing %s" % (", ".join(players), gameSession.game.name)
+            )
+            gameSession.notified_on = True
+            gameSession.save()
+
+    gameSessions = GameSession.objects.filter(notified_on=True, time_end=None)
+    for gameSession in gameSessions:
+        players = []
+        for gameSessionPerson in GameSessionPerson.objects.filter(notified_on=False, game_session=gameSession):
+            players.append(gameSessionPerson.person.slack_name)
+            gameSessionPerson.notified_on = True
+            gameSessionPerson.save()
+
+        if len(players) > 0:
+            slack_client = WebClient(os.environ['SLACK_KEY'])
+            slack_client.chat_postMessage(
+                channel='#goad',
+                text="%s have joined playing %s" % (", ".join(players), gameSession.game.name)
+            )
 
 def readSteamGamesFromPlayers(players):
     steam_ids = []
