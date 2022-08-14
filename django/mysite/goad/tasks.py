@@ -43,7 +43,11 @@ def checkSteamUser():
     gameSessions = GameSession.objects.filter(time_end=None)
     for gameSession in gameSessions:
         game = gameSession.game
-        playerListForGame = gamesWithPlayerLists[game.name]
+        playerListForGame = []
+        try:
+            playerListForGame = gamesWithPlayerLists[game.name]
+        except:
+            pass
         if len(playerListForGame) < 2:
             gameSession.time_end = timezone.now()
             gameSession.save()
