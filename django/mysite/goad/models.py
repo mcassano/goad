@@ -18,6 +18,7 @@ class GameSession(models.Model):
     time_started = models.DateTimeField()
     time_end = models.DateTimeField(null=True)
     game = models.ForeignKey(Game, on_delete=models.CASCADE)
+    notified_on = models.BooleanField(default=False)
     def __str__(self):
         return '{} - {} - {}'.format(self.game.name, self.time_started, self.time_end)
 
@@ -26,5 +27,6 @@ class GameSessionPerson(models.Model):
     game_session = models.ForeignKey(GameSession, on_delete=models.CASCADE)
     time_joined = models.DateTimeField()
     time_left = models.DateTimeField(null=True)
+    notified_on = models.BooleanField(default=False)
     def __str__(self):
         return '{} - {} - {}'.format(self.person.steam_id, self.game_session.game.name, self.time_left)
