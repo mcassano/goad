@@ -19,6 +19,7 @@ class GameSession(models.Model):
     time_end = models.DateTimeField(null=True)
     game = models.ForeignKey(Game, on_delete=models.CASCADE)
     notified_on = models.BooleanField(default=False)
+    slack_thread_ts = models.CharField(max_length=40, default=None, null=True)
     def __str__(self):
         return '{} - {} - {}'.format(self.game.name, self.time_started, self.time_end)
 

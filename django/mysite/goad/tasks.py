@@ -57,23 +57,26 @@ def checkSteamUser():
             slack_client = WebClient(os.environ['SLACK_KEY'])
             slack_client.chat_postMessage(
                 channel='#goad',
+                thread_ts='%s' % (gameSession.slack_thread_ts),
                 text="%s are done playing %s, %s hours" % (", ".join(players), gameSession.game.name, str(round((gameSession.time_end - gameSession.time_started).total_seconds()/60/60, 2)))
             )
 
     gameSessions = GameSession.objects.filter(notified_on=False)
     for gameSession in gameSessions:
         gameSessionPersons = GameSessionPerson.objects.filter(game_session=gameSession).order_by('-time_joined')
-        if ((timezone.now() - gameSessionPersons.first().time_joined).total_seconds()) / 60 > 5:
+        if ((timezone.now() - gameSessionPersons.first().time_joined).total_seconds()) / 60 > 0:
             players = []
             for gameSessionPerson in gameSessionPersons:
                 players.append(gameSessionPerson.person.slack_name)
                 gameSessionPerson.notified_on = True
                 gameSessionPerson.save()
             slack_client = WebClient(os.environ['SLACK_KEY'])
-            slack_client.chat_postMessage(
+            response = slack_client.chat_postMessage(
                 channel='#goad',
                 text="%s have started playing %s" % (", ".join(players), gameSession.game.name)
             )
+            #x = json.loads(response, object_hook=lambda d: Namespace(**d))
+            gameSession.slack_thread_ts = response['ts']
             gameSession.notified_on = True
             gameSession.save()
 
@@ -89,6 +92,7 @@ def checkSteamUser():
             slack_client = WebClient(os.environ['SLACK_KEY'])
             slack_client.chat_postMessage(
                 channel='#goad',
+                thread_ts='%s' % (gameSession.slack_thread_ts),
                 text="%s have joined playing %s" % (", ".join(players), gameSession.game.name)
             )
 
