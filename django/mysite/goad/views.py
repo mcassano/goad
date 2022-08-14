@@ -23,14 +23,10 @@ def index(request):
 def slack(request):
     slack_client = WebClient(os.environ['SLACK_KEY'])
     starterbot_id = None
-    #slack_client.chat_postMessage(
-    #    channel='#goad',
-    #    text="@notmarkmiranda for how long and when shall I begin?")
+    slack_client.chat_postMessage(
+       channel='#goad',
+       text="yo")
     return HttpResponse("hi slack")
-
-def steamCheckUser(request):
-    return HttpResponse("(%s) (%s) (%s)" %(personaname, game, gameextrainfo))
-
 
 @api_view(['POST'])
 def slacklink(request):
@@ -45,34 +41,35 @@ def slacklink(request):
 @api_view(['POST'])
 def potentialGames(request):
     team_id = request.data['team_id'] 
-    print(team_id)
     peopleInThisSlack = Person.objects.filter(team_id=team_id)
-    games = {
-        
-    }
-        
+    games = {}
+
     for person in peopleInThisSlack:
-        data = steam.webapi.webapi_request(f'http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key={os.environ["STEAM_KEY"]}&steamid={person.steam_id}&format=json')
+        data = steam.webapi.webapi_request(f'http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key={os.environ["STEAM_KEY"]}&steamid={person.steam_id}&format=json')
         for game in data['response']['games']:
             appId = game['appid']
-            playtime_2weeks = game['playtime_2weeks']
-            name = game['name']
+            playtime_forever = game['playtime_forever']
             
-            print()
             if(appId in games.keys()):
                 games[appId]["players"] = games[appId]["players"] + 1
-                games[appId]["playtime_2weeks"] = games[appId]["playtime_2weeks"] + playtime_2weeks
+                games[appId]["playtime_forever"] = games[appId]["playtime_forever"] + playtime_forever
             else:
                 games[appId] = {
                     "players": 1,
-                    "playtime_2weeks": playtime_2weeks,
-                    "name": name,
-                    "appId": appId
+                    "playtime_forever": playtime_forever,
+                    "appid": appId,
                 }
         
         
     def sortedfunc(x):
-        return x["playtime_2weeks"] * ( x["players"] * 2 )
+        return x["playtime_forever"] * ( x["players"] * 2 )
     
     sortedGames = sorted(games.values(), key=sortedfunc, reverse=True)
-    return Response(f'Looks like *{sortedGames[0]["name"]}* is the most popular game in this slack group...runner up is *{sortedGames[1]["name"]}*')
+    topGames = []
+    for game in sortedGames[:20]:
+        appid = game["appid"]
+        data = steam.webapi.webapi_request(f'https://store.steampowered.com/api/appdetails?appids={appid}')
+        gameName = data[str(appid)]["data"]["name"]
+        playTime = game["playtime_forever"]
+        topGames.append("%s" % (gameName))
+    return Response(f'%s' %(",".join(topGames)))
